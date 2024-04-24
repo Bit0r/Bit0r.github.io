@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh-CN" xml:lang="zh-CN"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.553">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Bit0r">
+
+<title>混淆矩阵、宏平均、微平均和加权平均</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="confusion_matrix_metrics_files/libs/clipboard/clipboard.min.js"></script>
+<script src="confusion_matrix_metrics_files/libs/quarto-html/quarto.js"></script>
+<script src="confusion_matrix_metrics_files/libs/quarto-html/popper.min.js"></script>
+<script src="confusion_matrix_metrics_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="confusion_matrix_metrics_files/libs/quarto-html/anchor.min.js"></script>
+<link href="confusion_matrix_metrics_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="confusion_matrix_metrics_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="confusion_matrix_metrics_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="confusion_matrix_metrics_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="confusion_matrix_metrics_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body>
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">目录</h2>
+   
+  <ul>
+  <li><a href="#引言" id="toc-引言" class="nav-link active" data-scroll-target="#引言"><span class="header-section-number">1</span> 引言</a></li>
+  <li><a href="#混淆矩阵和指标" id="toc-混淆矩阵和指标" class="nav-link" data-scroll-target="#混淆矩阵和指标"><span class="header-section-number">2</span> 混淆矩阵和指标</a>
+  <ul class="collapse">
+  <li><a href="#混淆矩阵" id="toc-混淆矩阵" class="nav-link" data-scroll-target="#混淆矩阵"><span class="header-section-number">2.1</span> 混淆矩阵</a></li>
+  <li><a href="#所有指标" id="toc-所有指标" class="nav-link" data-scroll-target="#所有指标"><span class="header-section-number">2.2</span> 所有指标</a></li>
+  <li><a href="#负类" id="toc-负类" class="nav-link" data-scroll-target="#负类"><span class="header-section-number">2.3</span> 负类</a></li>
+  </ul></li>
+  <li><a href="#手动计算所有指标" id="toc-手动计算所有指标" class="nav-link" data-scroll-target="#手动计算所有指标"><span class="header-section-number">3</span> 手动计算所有指标</a>
+  <ul class="collapse">
+  <li><a href="#宏平均" id="toc-宏平均" class="nav-link" data-scroll-target="#宏平均"><span class="header-section-number">3.1</span> 宏平均</a>
+  <ul class="collapse">
+  <li><a href="#计算宏平均" id="toc-计算宏平均" class="nav-link" data-scroll-target="#计算宏平均"><span class="header-section-number">3.1.1</span> 计算宏平均</a></li>
+  </ul></li>
+  <li><a href="#微平均" id="toc-微平均" class="nav-link" data-scroll-target="#微平均"><span class="header-section-number">3.2</span> 微平均</a>
+  <ul class="collapse">
+  <li><a href="#计算微平均" id="toc-计算微平均" class="nav-link" data-scroll-target="#计算微平均"><span class="header-section-number">3.2.1</span> 计算微平均</a></li>
+  <li><a href="#微平均的precisionrecallf1和accuracy的关系" id="toc-微平均的precisionrecallf1和accuracy的关系" class="nav-link" data-scroll-target="#微平均的precisionrecallf1和accuracy的关系"><span class="header-section-number">3.2.2</span> 微平均的precision、recall、f1和accuracy的关系</a></li>
+  </ul></li>
+  <li><a href="#加权平均" id="toc-加权平均" class="nav-link" data-scroll-target="#加权平均"><span class="header-section-number">3.3</span> 加权平均</a>
+  <ul class="collapse">
+  <li><a href="#计算加权平均" id="toc-计算加权平均" class="nav-link" data-scroll-target="#计算加权平均"><span class="header-section-number">3.3.1</span> 计算加权平均</a></li>
+  <li><a href="#加权平均的recall和accuracy的关系" id="toc-加权平均的recall和accuracy的关系" class="nav-link" data-scroll-target="#加权平均的recall和accuracy的关系"><span class="header-section-number">3.3.2</span> 加权平均的recall和accuracy的关系</a></li>
+  </ul></li>
+  </ul></li>
+  <li><a href="#总结" id="toc-总结" class="nav-link" data-scroll-target="#总结"><span class="header-section-number">4</span> 总结</a>
+  <ul class="collapse">
+  <li><a href="#混淆矩阵和指标的关系" id="toc-混淆矩阵和指标的关系" class="nav-link" data-scroll-target="#混淆矩阵和指标的关系"><span class="header-section-number">4.1</span> 混淆矩阵和指标的关系</a></li>
+  <li><a href="#特殊关系" id="toc-特殊关系" class="nav-link" data-scroll-target="#特殊关系"><span class="header-section-number">4.2</span> 特殊关系</a></li>
+  </ul></li>
+  </ul>
+</nav>
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">混淆矩阵、宏平均、微平均和加权平均</h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> 代码</button></div></div>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">作者</div>
+    <div class="quarto-title-meta-contents">
+             <p>Bit0r </p>
+          </div>
+  </div>
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="引言" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> 引言</h1>
+<p>在机器学习中，我们经常会遇到多分类问题，这时我们需要评估模型的性能。混淆矩阵是一个非常好的工具，可以帮助我们直观地了解模型的性能。 在混淆矩阵的基础上，我们可以计算宏平均、微平均和加权平均，来评估模型的性能。</p>
+<p>网络上的方法通常都是根据每类的混淆矩阵来计算宏平均、微平均和加权平均，但实际上可以直接通过多类的混淆矩阵来计算宏平均、微平均和加权平均。</p>
+<p>首先，先构造两个数组，一个是真实标签，一个是预测标签。 然后，我们将标签映射到一个整数，这样我们就可以计算混淆矩阵。</p>
+<div id="836cf418" class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> addict <span class="im">import</span> Dict</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> einops <span class="im">as</span> ein</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn <span class="im">import</span> metrics</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>y_true <span class="op">=</span> np.array([<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">2</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">2</span>, <span class="dv">3</span>])</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>y_pred <span class="op">=</span> np.array([<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">2</span>, <span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">0</span>, <span class="dv">2</span>, <span class="dv">0</span>, <span class="dv">3</span>])</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> [<span class="st">"apple"</span>, <span class="st">"orange"</span>, <span class="st">"pear"</span>, <span class="st">"other"</span>]</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>y_true_label <span class="op">=</span> pd.Series([labels[i] <span class="cf">for</span> i <span class="kw">in</span> y_true])</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>y_pred_label <span class="op">=</span> pd.Series([labels[i] <span class="cf">for</span> i <span class="kw">in</span> y_pred])</span></code><button title="复制到剪贴板" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="混淆矩阵和指标" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> 混淆矩阵和指标</h1>
+<section id="混淆矩阵" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="混淆矩阵"><span class="header-section-number">2.1</span> 混淆矩阵</h2>
+<p>混淆矩阵是一个 <span class="math inline">n \times n</span> 的矩阵，其中 <span class="math inline">n</span> 是类别的个数。 对于二分类问题，混淆矩阵是一个 <span class="math inline">2 \times 2</span> 的矩阵，对于多分类问题，混淆矩阵是一个 <span class="math inline">n \times n</span> 的矩阵。 但是，对于多分类问题，有时我们会有一个 <code>other</code> 类别，这时混淆矩阵是一个 <span class="math inline">(n+1) \times (n+1)</span> 的矩阵。</p>
+<p>通常，混淆矩阵的行表示真实标签，列表示预测标签。 以上面的真实标签和预测标签为例，我们可以计算混淆矩阵。</p>
+<div id="cell-confusion-matrix" class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>cmd <span class="op">=</span> metrics.ConfusionMatrixDisplay.from_predictions(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    y_true_label, y_pred_label, labels<span class="op">=</span>labels</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>cm <span class="op">=</span> cmd.confusion_matrix</span></code><button title="复制到剪贴板" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="confusion_matrix_metrics_files/figure-html/confusion-matrix-output-1.png" class="img-fluid figure-img"></p>
+<figcaption>混淆矩阵</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="所有指标" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="所有指标"><span class="header-section-number">2.2</span> 所有指标</h2>
+<p>首先，解释一下所有指标：</p>
+<ul>
+<li><a href="https://en.wikipedia.org/wiki/Precision_and_recall">precision</a>: 精确率，是指预测为正类别的样本中，有多少是真正的正类别。</li>
+<li><a href="https://en.wikipedia.org/wiki/Precision_and_recall">recall</a>: 召回率，是指真正的正类别中，有多少被预测为正类别。</li>
+<li><a href="https://en.wikipedia.org/wiki/F-score#Definition">f1-score</a>: F1分数，是精确率和召回率的调和平均数。</li>
+<li><a href="https://en.wikipedia.org/wiki/F-score#Fβ_score">fbeta-score</a>: Fβ分数，是精确率和召回率的加权调和平均数。</li>
+<li><a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.precision_recall_fscore_support.html">support</a>: 支持度，是真值中每个类别出现的次数。</li>
+<li><a href="https://en.wikipedia.org/wiki/Accuracy_and_precision#In_multiclass_classification">accuracy</a>: 准确率，是指正确预测的样本数占所有样本数的比例。</li>
+</ul>
+<p><code>sklearn</code> 提供了 <code>classification_report</code> 函数，可以计算所有指标。 我们先用该函数计算所有指标，后面我们再根据混淆矩阵来手动计算这些指标。</p>
+<div id="555842f8" class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>report <span class="op">=</span> metrics.classification_report(</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    y_true_label, y_pred_label, labels<span class="op">=</span>labels, output_dict<span class="op">=</span><span class="va">True</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>report <span class="op">=</span> Dict(report)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 由于 accuracy 是一个特殊的指标，我们需要单独处理，后面会详细说明</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>report[<span class="st">"micro avg/accuracy"</span>] <span class="op">=</span> {</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"precision"</span>: report.accuracy,</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"recall"</span>: report.accuracy,</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"f1-score"</span>: report.accuracy,</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"support"</span>: report[<span class="st">"macro avg"</span>].support,</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="kw">del</span> report.accuracy</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>report <span class="op">=</span> pd.DataFrame(report).T</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(report)</span></code><button title="复制到剪贴板" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                    precision    recall  f1-score  support
+apple                0.250000  0.250000  0.250000      4.0
+orange               0.333333  0.200000  0.250000      5.0
+pear                 0.400000  0.666667  0.500000      3.0
+other                0.666667  0.666667  0.666667      3.0
+macro avg            0.412500  0.445833  0.416667     15.0
+weighted avg         0.391111  0.400000  0.383333     15.0
+micro avg/accuracy   0.400000  0.400000  0.400000     15.0</code></pre>
+</div>
+</div>
+</section>
+<section id="负类" class="level2" data-number="2.3">
+<h2 data-number="2.3" class="anchored" data-anchor-id="负类"><span class="header-section-number">2.3</span> 负类</h2>
+<p>有时，我们会有一个负类，即一个 <code>other</code> 类别，这时我们计算指标时，需要将真值的 <code>other</code> 类别去掉。</p>
+<div id="f3d4ed61" class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>report_no_other <span class="op">=</span> metrics.classification_report(</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    y_true_label, y_pred_label, labels<span class="op">=</span>labels[:<span class="op">-</span><span class="dv">1</span>], output_dict<span class="op">=</span><span class="va">True</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>report_no_other <span class="op">=</span> Dict(report_no_other)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>report_no_other <span class="op">=</span> pd.DataFrame(report_no_other).T</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(report_no_other)</span></code><button title="复制到剪贴板" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>              precision    recall  f1-score  support
+apple          0.250000  0.250000  0.250000      4.0
+orange         0.333333  0.200000  0.250000      5.0
+pear           0.400000  0.666667  0.500000      3.0
+micro avg      0.333333  0.333333  0.333333     12.0
+macro avg      0.327778  0.372222  0.333333     12.0
+weighted avg   0.322222  0.333333  0.312500     12.0</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="手动计算所有指标" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> 手动计算所有指标</h1>
+<section id="宏平均" class="level2" data-number="3.1">
+<h2 data-number="3.1" class="anchored" data-anchor-id="宏平均"><span class="header-section-number">3.1</span> 宏平均</h2>
+<section id="计算宏平均" class="level3" data-number="3.1.1">
+<h3 data-number="3.1.1" class="anchored" data-anchor-id="计算宏平均"><span class="header-section-number">3.1.1</span> 计算宏平均</h3>
+<p>计算宏平均，分为以下步骤：</p>
+<ol type="1">
+<li>计算每个类别的指标</li>
+<li>对每个类别的指标求平均</li>
+</ol>
+<div id="6e6a21fd" class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>precisions <span class="op">=</span> np.diag(cm) <span class="op">/</span> np.<span class="bu">sum</span>(cm, axis<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>recalls <span class="op">=</span> np.diag(cm) <span class="op">/</span> np.<span class="bu">sum</span>(cm, axis<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>f1s <span class="op">=</span> <span class="dv">2</span> <span class="op">*</span> precisions <span class="op">*</span> recalls <span class="op">/</span> (precisions <span class="op">+</span> recalls)</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>support <span class="op">=</span> np.<span class="bu">sum</span>(cm)</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>metric_macro_ <span class="op">=</span> pd.Series(</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    [precisions.mean(), recalls.mean(), f1s.mean(), support],</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    index<span class="op">=</span>[<span class="st">"precision"</span>, <span class="st">"recall"</span>, <span class="st">"f1-score"</span>, <span class="st">"support"</span>],</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> np.allclose(metric_macro_, report.loc[<span class="st">"macro avg"</span>].to_numpy())</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(metric_macro_)</span></code><button title="复制到剪贴板" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>precision     0.412500
+recall        0.445833
+f1-score      0.416667
+support      15.000000
+dtype: float64</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="微平均" class="level2" data-number="3.2">
+<h2 data-number="3.2" class="anchored" data-anchor-id="微平均"><span class="header-section-number">3.2</span> 微平均</h2>
+<section id="计算微平均" class="level3" data-number="3.2.1">
+<h3 data-number="3.2.1" class="anchored" data-anchor-id="计算微平均"><span class="header-section-number">3.2.1</span> 计算微平均</h3>
+<p>计算微平均，分为以下步骤：</p>
+<ol type="1">
+<li>将所有类别看作一个类别</li>
+<li>计算全局的指标</li>
+</ol>
+<div id="cc068ff3" class="cell" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>precision <span class="op">=</span> np.<span class="bu">sum</span>(np.diag(cm)) <span class="op">/</span> np.<span class="bu">sum</span>(cm)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>recall <span class="op">=</span> np.<span class="bu">sum</span>(np.diag(cm)) <span class="op">/</span> np.<span class="bu">sum</span>(cm)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>f1 <span class="op">=</span> <span class="dv">2</span> <span class="op">*</span> precision <span class="op">*</span> recall <span class="op">/</span> (precision <span class="op">+</span> recall)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>support <span class="op">=</span> np.<span class="bu">sum</span>(cm)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>metric_micro_ <span class="op">=</span> pd.Series(</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    [precision, recall, f1, support],</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    index<span class="op">=</span>[<span class="st">"precision"</span>, <span class="st">"recall"</span>, <span class="st">"f1-score"</span>, <span class="st">"support"</span>],</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> np.allclose(metric_micro_, report.loc[<span class="st">"micro avg/accuracy"</span>].to_numpy())</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(metric_micro_)</span></code><button title="复制到剪贴板" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>precision     0.4
+recall        0.4
+f1-score      0.4
+support      15.0
+dtype: float64</code></pre>
+</div>
+</div>
+</section>
+<section id="微平均的precisionrecallf1和accuracy的关系" class="level3" data-number="3.2.2">
+<h3 data-number="3.2.2" class="anchored" data-anchor-id="微平均的precisionrecallf1和accuracy的关系"><span class="header-section-number">3.2.2</span> 微平均的precision、recall、f1和accuracy的关系</h3>
+<p>先说结论，对于多分类问题，有如下关系：</p>
+<p><span class="math display"> micro~precision = micro~recall = micro~f1 = accuracy </span></p>
+<p>原因如下：</p>
+<p><span class="math inline">\begin{aligned}
+precsion &amp; = 对角线元素之和 / 混淆矩阵每列之和 \\
+&amp; = 对角线元素之和 / 混淆矩阵所有元素之和
+\end{aligned}</span></p>
+<p><span class="math inline">\begin{aligned}
+recall &amp; = 对角线元素之和 / 混淆矩阵每行之和 \\
+&amp; = 对角线元素之和 / 混淆矩阵所有元素之和
+\end{aligned}</span></p>
+<p><span class="math inline">\begin{aligned}
+f1 &amp; = 2 * precsion * recall / (precsion + recall) \\
+&amp; = 2 * precsion * percsion / (precsion + precsion) \\
+&amp; = precsion \\
+&amp; = recall
+\end{aligned}</span></p>
+<p><span class="math inline">\begin{aligned}
+accuracy &amp; = 正确预测的样本数 / 所有样本数 \\
+&amp; = 对角线元素之和 / 混淆矩阵所有元素之和
+\end{aligned}</span></p>
+</section>
+</section>
+<section id="加权平均" class="level2" data-number="3.3">
+<h2 data-number="3.3" class="anchored" data-anchor-id="加权平均"><span class="header-section-number">3.3</span> 加权平均</h2>
+<section id="计算加权平均" class="level3" data-number="3.3.1">
+<h3 data-number="3.3.1" class="anchored" data-anchor-id="计算加权平均"><span class="header-section-number">3.3.1</span> 计算加权平均</h3>
+<p>加权平均是对每个类别的指标进行加权平均，权重是每个类别的样本数，也就是每个类别的支持度(support)。</p>
+<div id="6d8ef173" class="cell" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>supports <span class="op">=</span> np.<span class="bu">sum</span>(cm, axis<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>supports_normalized <span class="op">=</span> supports <span class="op">/</span> np.<span class="bu">sum</span>(supports)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>precisions <span class="op">=</span> np.diag(cm) <span class="op">/</span> np.<span class="bu">sum</span>(cm, axis<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>recalls <span class="op">=</span> np.diag(cm) <span class="op">/</span> np.<span class="bu">sum</span>(cm, axis<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>f1s <span class="op">=</span> <span class="dv">2</span> <span class="op">*</span> precisions <span class="op">*</span> recalls <span class="op">/</span> (precisions <span class="op">+</span> recalls)</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>metric_weighted_ <span class="op">=</span> pd.Series(</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>        np.<span class="bu">sum</span>(precisions <span class="op">*</span> supports_normalized),</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>        np.<span class="bu">sum</span>(recalls <span class="op">*</span> supports_normalized),</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>        np.<span class="bu">sum</span>(f1s <span class="op">*</span> supports_normalized),</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>        np.<span class="bu">sum</span>(supports),</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>    index<span class="op">=</span>[<span class="st">"precision"</span>, <span class="st">"recall"</span>, <span class="st">"f1-score"</span>, <span class="st">"support"</span>],</span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> np.allclose(metric_weighted_, report.loc[<span class="st">"weighted avg"</span>].to_numpy())</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(metric_weighted_)</span></code><button title="复制到剪贴板" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>precision     0.391111
+recall        0.400000
+f1-score      0.383333
+support      15.000000
+dtype: float64</code></pre>
+</div>
+</div>
+</section>
+<section id="加权平均的recall和accuracy的关系" class="level3" data-number="3.3.2">
+<h3 data-number="3.3.2" class="anchored" data-anchor-id="加权平均的recall和accuracy的关系"><span class="header-section-number">3.3.2</span> 加权平均的recall和accuracy的关系</h3>
+<p>先说结论，对于多分类问题，有如下关系：</p>
+<p><span class="math display"> weighted~recall = accuracy </span></p>
+<p>原因如下：</p>
+<p><span class="math inline">\begin{aligned}
+每个类别的加权 recall &amp; = 该类别的 recall * 该类别的权值 \\
+&amp; = ( 该类别的对角线元素 / 该元素所在行之和 ) * ( 该元素所在行之和 / 所有元素之和 ) \\
+&amp; = 该类别的对角线元素 / 所有元素之和
+\end{aligned}</span></p>
+<p><span class="math inline">\begin{aligned}
+总体的加权 recall &amp; = 所有类别的加权 recall 之和 \\
+&amp; = 所有类别的对角线元素之和 / 所有元素之和 \\
+&amp; = accuracy
+\end{aligned}</span></p>
+</section>
+</section>
+</section>
+<section id="总结" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> 总结</h1>
+<section id="混淆矩阵和指标的关系" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="混淆矩阵和指标的关系"><span class="header-section-number">4.1</span> 混淆矩阵和指标的关系</h2>
+<p>从上面的计算可以看出，不同的指标就是对混淆矩阵的不同处理方方式。<br>
+<strong>本质上来说，所有指标都是混淆矩阵的一个数字特征，是从不同的角度来看待混淆矩阵。</strong><br>
+所以，如果有了混淆矩阵，我们就可以计算出所有指标，<strong>因为混淆矩阵包含了指标的所有信息。</strong></p>
+</section>
+<section id="特殊关系" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="特殊关系"><span class="header-section-number">4.2</span> 特殊关系</h2>
+<p>对于多分类问题，有如下关系：</p>
+<p><span class="math display"> micro~precision = micro~recall = micro~f1 = accuracy = weighted~recall </span></p>
+<!-- -->
+
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "已复制");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "已复制");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  const viewSource = window.document.getElementById('quarto-view-source') ||
+                     window.document.getElementById('quarto-code-tools-source');
+  if (viewSource) {
+    const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+    viewSource.addEventListener("click", function(e) {
+      if (sourceUrl) {
+        // rstudio viewer pane
+        if (/\bcapabilities=\b/.test(window.location)) {
+          window.open(sourceUrl);
+        } else {
+          window.location.href = sourceUrl;
+        }
+      } else {
+        const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+        modal.show();
+      }
+      return false;
+    });
+  }
+  function toggleCodeHandler(show) {
+    return function(e) {
+      const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+      for (let i=0; i<detailsSrc.length; i++) {
+        const details = detailsSrc[i].parentElement;
+        if (show) {
+          details.open = true;
+        } else {
+          details.removeAttribute("open");
+        }
+      }
+      const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+      const fromCls = show ? "hidden" : "unhidden";
+      const toCls = show ? "unhidden" : "hidden";
+      for (let i=0; i<cellCodeDivs.length; i++) {
+        const codeDiv = cellCodeDivs[i];
+        if (codeDiv.classList.contains(fromCls)) {
+          codeDiv.classList.remove(fromCls);
+          codeDiv.classList.add(toCls);
+        } 
+      }
+      return false;
+    }
+  }
+  const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+  if (hideAllCode) {
+    hideAllCode.addEventListener("click", toggleCodeHandler(false));
+  }
+  const showAllCode = window.document.getElementById("quarto-show-all-code");
+  if (showAllCode) {
+    showAllCode.addEventListener("click", toggleCodeHandler(true));
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">源代码</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="sourceCode" id="cb13" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "混淆矩阵、宏平均、微平均和加权平均"</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span><span class="co"> "Bit0r"</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="an">lang:</span><span class="co"> zh-CN</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="an">editor:</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="co">  render-on-save: true</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="an">toc:</span><span class="co"> true</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="an">number-sections:</span><span class="co"> true</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="an">format:</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="co">  html:</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="co">    code-fold: false</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="co">    code-tools: true</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a><span class="co">    html-math-method: katex</span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="co">#  pdf:</span></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a><span class="co">#    geometry:</span></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a><span class="co">#      - top=30mm</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a><span class="co">#      - left=20mm</span></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a><span class="co">#  docx: default</span></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a><span class="fu"># 引言</span></span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>在机器学习中，我们经常会遇到多分类问题，这时我们需要评估模型的性能。混淆矩阵是一个非常好的工具，可以帮助我们直观地了解模型的性能。</span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>在混淆矩阵的基础上，我们可以计算宏平均、微平均和加权平均，来评估模型的性能。</span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>网络上的方法通常都是根据每类的混淆矩阵来计算宏平均、微平均和加权平均，但实际上可以直接通过多类的混淆矩阵来计算宏平均、微平均和加权平均。</span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>首先，先构造两个数组，一个是真实标签，一个是预测标签。</span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a>然后，我们将标签映射到一个整数，这样我们就可以计算混淆矩阵。</span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> addict <span class="im">import</span> Dict</span>
+<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> einops <span class="im">as</span> ein</span>
+<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn <span class="im">import</span> metrics</span>
+<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a>y_true <span class="op">=</span> np.array([<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">2</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">2</span>, <span class="dv">3</span>])</span>
+<span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a>y_pred <span class="op">=</span> np.array([<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">2</span>, <span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">0</span>, <span class="dv">2</span>, <span class="dv">0</span>, <span class="dv">3</span>])</span>
+<span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> [<span class="st">"apple"</span>, <span class="st">"orange"</span>, <span class="st">"pear"</span>, <span class="st">"other"</span>]</span>
+<span id="cb13-44"><a href="#cb13-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a>y_true_label <span class="op">=</span> pd.Series([labels[i] <span class="cf">for</span> i <span class="kw">in</span> y_true])</span>
+<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a>y_pred_label <span class="op">=</span> pd.Series([labels[i] <span class="cf">for</span> i <span class="kw">in</span> y_pred])</span>
+<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a><span class="fu"># 混淆矩阵和指标</span></span>
+<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-51"><a href="#cb13-51" aria-hidden="true" tabindex="-1"></a><span class="fu">## 混淆矩阵</span></span>
+<span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a>混淆矩阵是一个 $n \times n$ 的矩阵，其中 $n$ 是类别的个数。</span>
+<span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a>对于二分类问题，混淆矩阵是一个 $2 \times 2$ 的矩阵，对于多分类问题，混淆矩阵是一个 $n \times n$ 的矩阵。</span>
+<span id="cb13-55"><a href="#cb13-55" aria-hidden="true" tabindex="-1"></a>但是，对于多分类问题，有时我们会有一个 <span class="in">`other`</span> 类别，这时混淆矩阵是一个 $(n+1) \times (n+1)$ 的矩阵。</span>
+<span id="cb13-56"><a href="#cb13-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-57"><a href="#cb13-57" aria-hidden="true" tabindex="-1"></a>通常，混淆矩阵的行表示真实标签，列表示预测标签。</span>
+<span id="cb13-58"><a href="#cb13-58" aria-hidden="true" tabindex="-1"></a>以上面的真实标签和预测标签为例，我们可以计算混淆矩阵。</span>
+<span id="cb13-59"><a href="#cb13-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-62"><a href="#cb13-62" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb13-63"><a href="#cb13-63" aria-hidden="true" tabindex="-1"></a><span class="co"># | label: confusion-matrix</span></span>
+<span id="cb13-64"><a href="#cb13-64" aria-hidden="true" tabindex="-1"></a><span class="co"># | fig-cap: 混淆矩阵</span></span>
+<span id="cb13-65"><a href="#cb13-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-66"><a href="#cb13-66" aria-hidden="true" tabindex="-1"></a>cmd <span class="op">=</span> metrics.ConfusionMatrixDisplay.from_predictions(</span>
+<span id="cb13-67"><a href="#cb13-67" aria-hidden="true" tabindex="-1"></a>    y_true_label, y_pred_label, labels<span class="op">=</span>labels</span>
+<span id="cb13-68"><a href="#cb13-68" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-69"><a href="#cb13-69" aria-hidden="true" tabindex="-1"></a>cm <span class="op">=</span> cmd.confusion_matrix</span>
+<span id="cb13-70"><a href="#cb13-70" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-71"><a href="#cb13-71" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-72"><a href="#cb13-72" aria-hidden="true" tabindex="-1"></a><span class="fu">## 所有指标</span></span>
+<span id="cb13-73"><a href="#cb13-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-74"><a href="#cb13-74" aria-hidden="true" tabindex="-1"></a>首先，解释一下所有指标：</span>
+<span id="cb13-75"><a href="#cb13-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-76"><a href="#cb13-76" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">precision</span><span class="co">](https://en.wikipedia.org/wiki/Precision_and_recall)</span>: 精确率，是指预测为正类别的样本中，有多少是真正的正类别。</span>
+<span id="cb13-77"><a href="#cb13-77" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">recall</span><span class="co">](https://en.wikipedia.org/wiki/Precision_and_recall)</span>: 召回率，是指真正的正类别中，有多少被预测为正类别。</span>
+<span id="cb13-78"><a href="#cb13-78" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">f1-score</span><span class="co">](https://en.wikipedia.org/wiki/F-score#Definition)</span>: F1分数，是精确率和召回率的调和平均数。</span>
+<span id="cb13-79"><a href="#cb13-79" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">fbeta-score</span><span class="co">](https://en.wikipedia.org/wiki/F-score#Fβ_score)</span>: Fβ分数，是精确率和召回率的加权调和平均数。</span>
+<span id="cb13-80"><a href="#cb13-80" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">support</span><span class="co">](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.precision_recall_fscore_support.html)</span>: 支持度，是真值中每个类别出现的次数。</span>
+<span id="cb13-81"><a href="#cb13-81" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">accuracy</span><span class="co">](https://en.wikipedia.org/wiki/Accuracy_and_precision#In_multiclass_classification)</span>: 准确率，是指正确预测的样本数占所有样本数的比例。</span>
+<span id="cb13-82"><a href="#cb13-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-83"><a href="#cb13-83" aria-hidden="true" tabindex="-1"></a><span class="in">`sklearn`</span> 提供了 <span class="in">`classification_report`</span> 函数，可以计算所有指标。</span>
+<span id="cb13-84"><a href="#cb13-84" aria-hidden="true" tabindex="-1"></a>我们先用该函数计算所有指标，后面我们再根据混淆矩阵来手动计算这些指标。</span>
+<span id="cb13-85"><a href="#cb13-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-88"><a href="#cb13-88" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb13-89"><a href="#cb13-89" aria-hidden="true" tabindex="-1"></a>report <span class="op">=</span> metrics.classification_report(</span>
+<span id="cb13-90"><a href="#cb13-90" aria-hidden="true" tabindex="-1"></a>    y_true_label, y_pred_label, labels<span class="op">=</span>labels, output_dict<span class="op">=</span><span class="va">True</span></span>
+<span id="cb13-91"><a href="#cb13-91" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-92"><a href="#cb13-92" aria-hidden="true" tabindex="-1"></a>report <span class="op">=</span> Dict(report)</span>
+<span id="cb13-93"><a href="#cb13-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-94"><a href="#cb13-94" aria-hidden="true" tabindex="-1"></a><span class="co"># 由于 accuracy 是一个特殊的指标，我们需要单独处理，后面会详细说明</span></span>
+<span id="cb13-95"><a href="#cb13-95" aria-hidden="true" tabindex="-1"></a>report[<span class="st">"micro avg/accuracy"</span>] <span class="op">=</span> {</span>
+<span id="cb13-96"><a href="#cb13-96" aria-hidden="true" tabindex="-1"></a>    <span class="st">"precision"</span>: report.accuracy,</span>
+<span id="cb13-97"><a href="#cb13-97" aria-hidden="true" tabindex="-1"></a>    <span class="st">"recall"</span>: report.accuracy,</span>
+<span id="cb13-98"><a href="#cb13-98" aria-hidden="true" tabindex="-1"></a>    <span class="st">"f1-score"</span>: report.accuracy,</span>
+<span id="cb13-99"><a href="#cb13-99" aria-hidden="true" tabindex="-1"></a>    <span class="st">"support"</span>: report[<span class="st">"macro avg"</span>].support,</span>
+<span id="cb13-100"><a href="#cb13-100" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb13-101"><a href="#cb13-101" aria-hidden="true" tabindex="-1"></a><span class="kw">del</span> report.accuracy</span>
+<span id="cb13-102"><a href="#cb13-102" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-103"><a href="#cb13-103" aria-hidden="true" tabindex="-1"></a>report <span class="op">=</span> pd.DataFrame(report).T</span>
+<span id="cb13-104"><a href="#cb13-104" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(report)</span>
+<span id="cb13-105"><a href="#cb13-105" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-106"><a href="#cb13-106" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-107"><a href="#cb13-107" aria-hidden="true" tabindex="-1"></a><span class="fu">## 负类</span></span>
+<span id="cb13-108"><a href="#cb13-108" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-109"><a href="#cb13-109" aria-hidden="true" tabindex="-1"></a>有时，我们会有一个负类，即一个 <span class="in">`other`</span> 类别，这时我们计算指标时，需要将真值的 <span class="in">`other`</span> 类别去掉。</span>
+<span id="cb13-110"><a href="#cb13-110" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-113"><a href="#cb13-113" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb13-114"><a href="#cb13-114" aria-hidden="true" tabindex="-1"></a>report_no_other <span class="op">=</span> metrics.classification_report(</span>
+<span id="cb13-115"><a href="#cb13-115" aria-hidden="true" tabindex="-1"></a>    y_true_label, y_pred_label, labels<span class="op">=</span>labels[:<span class="op">-</span><span class="dv">1</span>], output_dict<span class="op">=</span><span class="va">True</span></span>
+<span id="cb13-116"><a href="#cb13-116" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-117"><a href="#cb13-117" aria-hidden="true" tabindex="-1"></a>report_no_other <span class="op">=</span> Dict(report_no_other)</span>
+<span id="cb13-118"><a href="#cb13-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-119"><a href="#cb13-119" aria-hidden="true" tabindex="-1"></a>report_no_other <span class="op">=</span> pd.DataFrame(report_no_other).T</span>
+<span id="cb13-120"><a href="#cb13-120" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(report_no_other)</span>
+<span id="cb13-121"><a href="#cb13-121" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-122"><a href="#cb13-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-123"><a href="#cb13-123" aria-hidden="true" tabindex="-1"></a><span class="fu"># 手动计算所有指标</span></span>
+<span id="cb13-124"><a href="#cb13-124" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-125"><a href="#cb13-125" aria-hidden="true" tabindex="-1"></a><span class="fu">## 宏平均</span></span>
+<span id="cb13-126"><a href="#cb13-126" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-127"><a href="#cb13-127" aria-hidden="true" tabindex="-1"></a><span class="fu">### 计算宏平均</span></span>
+<span id="cb13-128"><a href="#cb13-128" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-129"><a href="#cb13-129" aria-hidden="true" tabindex="-1"></a>计算宏平均，分为以下步骤：</span>
+<span id="cb13-130"><a href="#cb13-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-131"><a href="#cb13-131" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>计算每个类别的指标</span>
+<span id="cb13-132"><a href="#cb13-132" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>对每个类别的指标求平均</span>
+<span id="cb13-133"><a href="#cb13-133" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-136"><a href="#cb13-136" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb13-137"><a href="#cb13-137" aria-hidden="true" tabindex="-1"></a>precisions <span class="op">=</span> np.diag(cm) <span class="op">/</span> np.<span class="bu">sum</span>(cm, axis<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb13-138"><a href="#cb13-138" aria-hidden="true" tabindex="-1"></a>recalls <span class="op">=</span> np.diag(cm) <span class="op">/</span> np.<span class="bu">sum</span>(cm, axis<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb13-139"><a href="#cb13-139" aria-hidden="true" tabindex="-1"></a>f1s <span class="op">=</span> <span class="dv">2</span> <span class="op">*</span> precisions <span class="op">*</span> recalls <span class="op">/</span> (precisions <span class="op">+</span> recalls)</span>
+<span id="cb13-140"><a href="#cb13-140" aria-hidden="true" tabindex="-1"></a>support <span class="op">=</span> np.<span class="bu">sum</span>(cm)</span>
+<span id="cb13-141"><a href="#cb13-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-142"><a href="#cb13-142" aria-hidden="true" tabindex="-1"></a>metric_macro_ <span class="op">=</span> pd.Series(</span>
+<span id="cb13-143"><a href="#cb13-143" aria-hidden="true" tabindex="-1"></a>    [precisions.mean(), recalls.mean(), f1s.mean(), support],</span>
+<span id="cb13-144"><a href="#cb13-144" aria-hidden="true" tabindex="-1"></a>    index<span class="op">=</span>[<span class="st">"precision"</span>, <span class="st">"recall"</span>, <span class="st">"f1-score"</span>, <span class="st">"support"</span>],</span>
+<span id="cb13-145"><a href="#cb13-145" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-146"><a href="#cb13-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-147"><a href="#cb13-147" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> np.allclose(metric_macro_, report.loc[<span class="st">"macro avg"</span>].to_numpy())</span>
+<span id="cb13-148"><a href="#cb13-148" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-149"><a href="#cb13-149" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(metric_macro_)</span>
+<span id="cb13-150"><a href="#cb13-150" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-151"><a href="#cb13-151" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-152"><a href="#cb13-152" aria-hidden="true" tabindex="-1"></a><span class="fu">## 微平均</span></span>
+<span id="cb13-153"><a href="#cb13-153" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-154"><a href="#cb13-154" aria-hidden="true" tabindex="-1"></a><span class="fu">### 计算微平均</span></span>
+<span id="cb13-155"><a href="#cb13-155" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-156"><a href="#cb13-156" aria-hidden="true" tabindex="-1"></a>计算微平均，分为以下步骤：</span>
+<span id="cb13-157"><a href="#cb13-157" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-158"><a href="#cb13-158" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>将所有类别看作一个类别</span>
+<span id="cb13-159"><a href="#cb13-159" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>计算全局的指标</span>
+<span id="cb13-160"><a href="#cb13-160" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-163"><a href="#cb13-163" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb13-164"><a href="#cb13-164" aria-hidden="true" tabindex="-1"></a>precision <span class="op">=</span> np.<span class="bu">sum</span>(np.diag(cm)) <span class="op">/</span> np.<span class="bu">sum</span>(cm)</span>
+<span id="cb13-165"><a href="#cb13-165" aria-hidden="true" tabindex="-1"></a>recall <span class="op">=</span> np.<span class="bu">sum</span>(np.diag(cm)) <span class="op">/</span> np.<span class="bu">sum</span>(cm)</span>
+<span id="cb13-166"><a href="#cb13-166" aria-hidden="true" tabindex="-1"></a>f1 <span class="op">=</span> <span class="dv">2</span> <span class="op">*</span> precision <span class="op">*</span> recall <span class="op">/</span> (precision <span class="op">+</span> recall)</span>
+<span id="cb13-167"><a href="#cb13-167" aria-hidden="true" tabindex="-1"></a>support <span class="op">=</span> np.<span class="bu">sum</span>(cm)</span>
+<span id="cb13-168"><a href="#cb13-168" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-169"><a href="#cb13-169" aria-hidden="true" tabindex="-1"></a>metric_micro_ <span class="op">=</span> pd.Series(</span>
+<span id="cb13-170"><a href="#cb13-170" aria-hidden="true" tabindex="-1"></a>    [precision, recall, f1, support],</span>
+<span id="cb13-171"><a href="#cb13-171" aria-hidden="true" tabindex="-1"></a>    index<span class="op">=</span>[<span class="st">"precision"</span>, <span class="st">"recall"</span>, <span class="st">"f1-score"</span>, <span class="st">"support"</span>],</span>
+<span id="cb13-172"><a href="#cb13-172" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-173"><a href="#cb13-173" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-174"><a href="#cb13-174" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> np.allclose(metric_micro_, report.loc[<span class="st">"micro avg/accuracy"</span>].to_numpy())</span>
+<span id="cb13-175"><a href="#cb13-175" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-176"><a href="#cb13-176" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(metric_micro_)</span>
+<span id="cb13-177"><a href="#cb13-177" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-178"><a href="#cb13-178" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-179"><a href="#cb13-179" aria-hidden="true" tabindex="-1"></a><span class="fu">### 微平均的precision、recall、f1和accuracy的关系</span></span>
+<span id="cb13-180"><a href="#cb13-180" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-181"><a href="#cb13-181" aria-hidden="true" tabindex="-1"></a>先说结论，对于多分类问题，有如下关系：</span>
+<span id="cb13-182"><a href="#cb13-182" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-183"><a href="#cb13-183" aria-hidden="true" tabindex="-1"></a>$$ micro~precision = micro~recall = micro~f1 = accuracy $$</span>
+<span id="cb13-184"><a href="#cb13-184" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-185"><a href="#cb13-185" aria-hidden="true" tabindex="-1"></a>原因如下：</span>
+<span id="cb13-186"><a href="#cb13-186" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-187"><a href="#cb13-187" aria-hidden="true" tabindex="-1"></a>$\begin{aligned}</span>
+<span id="cb13-188"><a href="#cb13-188" aria-hidden="true" tabindex="-1"></a>precsion &amp; = 对角线元素之和 / 混淆矩阵每列之和 <span class="sc">\\</span></span>
+<span id="cb13-189"><a href="#cb13-189" aria-hidden="true" tabindex="-1"></a>&amp; = 对角线元素之和 / 混淆矩阵所有元素之和</span>
+<span id="cb13-190"><a href="#cb13-190" aria-hidden="true" tabindex="-1"></a>\end{aligned}$</span>
+<span id="cb13-191"><a href="#cb13-191" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-192"><a href="#cb13-192" aria-hidden="true" tabindex="-1"></a>$\begin{aligned}</span>
+<span id="cb13-193"><a href="#cb13-193" aria-hidden="true" tabindex="-1"></a>recall &amp; = 对角线元素之和 / 混淆矩阵每行之和 <span class="sc">\\</span></span>
+<span id="cb13-194"><a href="#cb13-194" aria-hidden="true" tabindex="-1"></a>&amp; = 对角线元素之和 / 混淆矩阵所有元素之和</span>
+<span id="cb13-195"><a href="#cb13-195" aria-hidden="true" tabindex="-1"></a>\end{aligned}$</span>
+<span id="cb13-196"><a href="#cb13-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-197"><a href="#cb13-197" aria-hidden="true" tabindex="-1"></a>$\begin{aligned}</span>
+<span id="cb13-198"><a href="#cb13-198" aria-hidden="true" tabindex="-1"></a>f1 &amp; = 2 * precsion * recall / (precsion + recall) <span class="sc">\\</span></span>
+<span id="cb13-199"><a href="#cb13-199" aria-hidden="true" tabindex="-1"></a>&amp; = 2 * precsion * percsion / (precsion + precsion) <span class="sc">\\</span></span>
+<span id="cb13-200"><a href="#cb13-200" aria-hidden="true" tabindex="-1"></a>&amp; = precsion <span class="sc">\\</span></span>
+<span id="cb13-201"><a href="#cb13-201" aria-hidden="true" tabindex="-1"></a>&amp; = recall</span>
+<span id="cb13-202"><a href="#cb13-202" aria-hidden="true" tabindex="-1"></a>\end{aligned}$</span>
+<span id="cb13-203"><a href="#cb13-203" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-204"><a href="#cb13-204" aria-hidden="true" tabindex="-1"></a>$\begin{aligned}</span>
+<span id="cb13-205"><a href="#cb13-205" aria-hidden="true" tabindex="-1"></a>accuracy &amp; = 正确预测的样本数 / 所有样本数 <span class="sc">\\</span></span>
+<span id="cb13-206"><a href="#cb13-206" aria-hidden="true" tabindex="-1"></a>&amp; = 对角线元素之和 / 混淆矩阵所有元素之和</span>
+<span id="cb13-207"><a href="#cb13-207" aria-hidden="true" tabindex="-1"></a>\end{aligned}$</span>
+<span id="cb13-208"><a href="#cb13-208" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-209"><a href="#cb13-209" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-210"><a href="#cb13-210" aria-hidden="true" tabindex="-1"></a><span class="fu">## 加权平均</span></span>
+<span id="cb13-211"><a href="#cb13-211" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-212"><a href="#cb13-212" aria-hidden="true" tabindex="-1"></a><span class="fu">### 计算加权平均</span></span>
+<span id="cb13-213"><a href="#cb13-213" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-214"><a href="#cb13-214" aria-hidden="true" tabindex="-1"></a>加权平均是对每个类别的指标进行加权平均，权重是每个类别的样本数，也就是每个类别的支持度(support)。</span>
+<span id="cb13-215"><a href="#cb13-215" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-218"><a href="#cb13-218" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb13-219"><a href="#cb13-219" aria-hidden="true" tabindex="-1"></a>supports <span class="op">=</span> np.<span class="bu">sum</span>(cm, axis<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb13-220"><a href="#cb13-220" aria-hidden="true" tabindex="-1"></a>supports_normalized <span class="op">=</span> supports <span class="op">/</span> np.<span class="bu">sum</span>(supports)</span>
+<span id="cb13-221"><a href="#cb13-221" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-222"><a href="#cb13-222" aria-hidden="true" tabindex="-1"></a>precisions <span class="op">=</span> np.diag(cm) <span class="op">/</span> np.<span class="bu">sum</span>(cm, axis<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb13-223"><a href="#cb13-223" aria-hidden="true" tabindex="-1"></a>recalls <span class="op">=</span> np.diag(cm) <span class="op">/</span> np.<span class="bu">sum</span>(cm, axis<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb13-224"><a href="#cb13-224" aria-hidden="true" tabindex="-1"></a>f1s <span class="op">=</span> <span class="dv">2</span> <span class="op">*</span> precisions <span class="op">*</span> recalls <span class="op">/</span> (precisions <span class="op">+</span> recalls)</span>
+<span id="cb13-225"><a href="#cb13-225" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-226"><a href="#cb13-226" aria-hidden="true" tabindex="-1"></a>metric_weighted_ <span class="op">=</span> pd.Series(</span>
+<span id="cb13-227"><a href="#cb13-227" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb13-228"><a href="#cb13-228" aria-hidden="true" tabindex="-1"></a>        np.<span class="bu">sum</span>(precisions <span class="op">*</span> supports_normalized),</span>
+<span id="cb13-229"><a href="#cb13-229" aria-hidden="true" tabindex="-1"></a>        np.<span class="bu">sum</span>(recalls <span class="op">*</span> supports_normalized),</span>
+<span id="cb13-230"><a href="#cb13-230" aria-hidden="true" tabindex="-1"></a>        np.<span class="bu">sum</span>(f1s <span class="op">*</span> supports_normalized),</span>
+<span id="cb13-231"><a href="#cb13-231" aria-hidden="true" tabindex="-1"></a>        np.<span class="bu">sum</span>(supports),</span>
+<span id="cb13-232"><a href="#cb13-232" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb13-233"><a href="#cb13-233" aria-hidden="true" tabindex="-1"></a>    index<span class="op">=</span>[<span class="st">"precision"</span>, <span class="st">"recall"</span>, <span class="st">"f1-score"</span>, <span class="st">"support"</span>],</span>
+<span id="cb13-234"><a href="#cb13-234" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-235"><a href="#cb13-235" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-236"><a href="#cb13-236" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> np.allclose(metric_weighted_, report.loc[<span class="st">"weighted avg"</span>].to_numpy())</span>
+<span id="cb13-237"><a href="#cb13-237" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-238"><a href="#cb13-238" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(metric_weighted_)</span>
+<span id="cb13-239"><a href="#cb13-239" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-240"><a href="#cb13-240" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-241"><a href="#cb13-241" aria-hidden="true" tabindex="-1"></a><span class="fu">### 加权平均的recall和accuracy的关系</span></span>
+<span id="cb13-242"><a href="#cb13-242" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-243"><a href="#cb13-243" aria-hidden="true" tabindex="-1"></a>先说结论，对于多分类问题，有如下关系：</span>
+<span id="cb13-244"><a href="#cb13-244" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-245"><a href="#cb13-245" aria-hidden="true" tabindex="-1"></a>$$ weighted~recall = accuracy $$</span>
+<span id="cb13-246"><a href="#cb13-246" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-247"><a href="#cb13-247" aria-hidden="true" tabindex="-1"></a>原因如下：</span>
+<span id="cb13-248"><a href="#cb13-248" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-249"><a href="#cb13-249" aria-hidden="true" tabindex="-1"></a>$\begin{aligned}</span>
+<span id="cb13-250"><a href="#cb13-250" aria-hidden="true" tabindex="-1"></a>每个类别的加权 recall &amp; = 该类别的 recall * 该类别的权值 <span class="sc">\\</span></span>
+<span id="cb13-251"><a href="#cb13-251" aria-hidden="true" tabindex="-1"></a>&amp; = ( 该类别的对角线元素 / 该元素所在行之和 ) * ( 该元素所在行之和 / 所有元素之和 ) <span class="sc">\\</span></span>
+<span id="cb13-252"><a href="#cb13-252" aria-hidden="true" tabindex="-1"></a>&amp; = 该类别的对角线元素 / 所有元素之和</span>
+<span id="cb13-253"><a href="#cb13-253" aria-hidden="true" tabindex="-1"></a>\end{aligned}$</span>
+<span id="cb13-254"><a href="#cb13-254" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-255"><a href="#cb13-255" aria-hidden="true" tabindex="-1"></a>$\begin{aligned}</span>
+<span id="cb13-256"><a href="#cb13-256" aria-hidden="true" tabindex="-1"></a>总体的加权 recall &amp; = 所有类别的加权 recall 之和 <span class="sc">\\</span></span>
+<span id="cb13-257"><a href="#cb13-257" aria-hidden="true" tabindex="-1"></a>&amp; = 所有类别的对角线元素之和 / 所有元素之和 <span class="sc">\\</span></span>
+<span id="cb13-258"><a href="#cb13-258" aria-hidden="true" tabindex="-1"></a>&amp; = accuracy</span>
+<span id="cb13-259"><a href="#cb13-259" aria-hidden="true" tabindex="-1"></a>\end{aligned}$</span>
+<span id="cb13-260"><a href="#cb13-260" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-261"><a href="#cb13-261" aria-hidden="true" tabindex="-1"></a><span class="fu"># 总结</span></span>
+<span id="cb13-262"><a href="#cb13-262" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-263"><a href="#cb13-263" aria-hidden="true" tabindex="-1"></a><span class="fu">## 混淆矩阵和指标的关系</span></span>
+<span id="cb13-264"><a href="#cb13-264" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-265"><a href="#cb13-265" aria-hidden="true" tabindex="-1"></a>从上面的计算可以看出，不同的指标就是对混淆矩阵的不同处理方方式。 \</span>
+<span id="cb13-266"><a href="#cb13-266" aria-hidden="true" tabindex="-1"></a>**本质上来说，所有指标都是混淆矩阵的一个数字特征，是从不同的角度来看待混淆矩阵。** \</span>
+<span id="cb13-267"><a href="#cb13-267" aria-hidden="true" tabindex="-1"></a>所以，如果有了混淆矩阵，我们就可以计算出所有指标，**因为混淆矩阵包含了指标的所有信息。**</span>
+<span id="cb13-268"><a href="#cb13-268" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-269"><a href="#cb13-269" aria-hidden="true" tabindex="-1"></a><span class="fu">## 特殊关系</span></span>
+<span id="cb13-270"><a href="#cb13-270" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-271"><a href="#cb13-271" aria-hidden="true" tabindex="-1"></a>对于多分类问题，有如下关系：</span>
+<span id="cb13-272"><a href="#cb13-272" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-273"><a href="#cb13-273" aria-hidden="true" tabindex="-1"></a>$$ micro~precision = micro~recall = micro~f1 = accuracy = weighted~recall $$</span>
+</code><button title="复制到剪贴板" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
