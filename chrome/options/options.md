@@ -4,7 +4,7 @@ chrome有很多命令行选项，有些选项非常实用，这里介绍一些�
 
 ## 减少cpu和内存消耗
 
-以下选项可以显著减少cpu和内存消耗
+以下选项可以显著减少cpu和内存消耗，但是会使得debugger和插件的功能出现问题，所以不适合开发者使用
 
 ```fish
 google-chrome --in-process-gpu --process-per-site --in-process-plugins
